@@ -1,649 +1,673 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Gezelle Netwerk Visualisatie</title>
-    <script type="text/javascript" src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <style>
-        /* Basisstijlen voor de container */
-        #mynetwork {
-            width: 100%;
-            height: 600px; 
-            border: 1px solid lightgray;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        body { 
-            font-family: Arial, sans-serif; 
-            padding: 20px; 
-            position: relative; 
-        }
+    <title>Gezelle Netwerk Visualisatie</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papapar.min.js"></script>
+    <style>
+        /* Basisstijlen voor de container */
+        #mynetwork {
+            width: 100%;
+            height: 600px; 
+            border: 1px solid lightgray;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            position: relative; 
+        }
 
-        /* Stijlen voor de controlebalk (jaartallen, reset) */
-        .controls { 
-            margin-bottom: 20px; 
-            padding: 15px; 
-            border: 1px solid #ddd; 
-            background-color: #f9f9f9; 
-            display: flex; 
-            align-items: center;
-        }
-        .controls label, .controls input { margin-right: 20px; }
-        
-        /* Stijlen voor de functionele knoppen */
-        .functional-button { 
-            padding: 10px 15px; 
-            color: white; 
-            border: none; 
-            border-radius: 5px; 
-            cursor: pointer; 
-            margin-left: 10px;
-        }
-        #resetButton { background-color: #007bff; margin-left: auto; }
-        #resetButton:hover { background-color: #0056b3; }
-        #legendToggleButton, #infoButton { background-color: #28a745; }
-        #legendToggleButton:hover, #infoButton:hover { background-color: #1e7e34; }
+        /* Stijlen voor de controlebalk (jaartallen, reset) */
+        .controls { 
+            margin-bottom: 20px; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            background-color: #f9f9f9; 
+            display: flex; 
+            align-items: center;
+        }
+        .controls label, .controls input { margin-right: 20px; }
+        
+        /* Stijlen voor de functionele knoppen */
+        .functional-button { 
+            padding: 10px 15px; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            margin-left: 10px;
+        }
+        #resetButton { background-color: #007bff; margin-left: auto; }
+        #resetButton:hover { background-color: #0056b3; }
+        #legendToggleButton, #infoButton { background-color: #28a745; }
+        #legendToggleButton:hover, #infoButton:hover { background-color: #1e7e34; }
 
 
-        /* STIJLEN VOOR LEGENDE & INFO PANEEL (Overlay) */
-        .overlay-container {
+        /* STIJLEN VOOR LEGENDE & INFO PANEEL (Overlay) */
+        .overlay-container {
+            position: absolute;
+            top: 100px;
+            right: 20px;
+            z-index: 1000; 
+            background: white;
+            padding: 20px;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            max-width: 350px;
+            max-height: 450px;
+            overflow-y: auto; 
+            transition: opacity 0.3s;
+        }
+
+        /* Legende Items */
+        #legendContainer { 
+            display: none; 
+        } 
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+            cursor: pointer; 
+            transition: background-color 0.1s;
+        }
+        .legend-item:hover {
+            background-color: #e9ecef;
+        }
+        .legend-item.active {
+            font-weight: bold;
+            background-color: #ffe0b2;
+            border: 1px dashed #ff9800;
+        }
+
+        /* Legende Kleurbol / Lijn */
+        .legend-color {
+            min-width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 1px solid #333;
+        }
+        .legend-edge {
+            min-width: 30px;
+            height: 3px;
+            margin-right: 10px;
+        }
+        
+        /* NIEUWE STIJL: Sluitknoppen voor overlays */
+        .close-button {
             position: absolute;
-            top: 100px;
-            right: 20px;
-            z-index: 1000; 
-            background: white;
-            padding: 20px;
-            border: 1px solid #ccc;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            max-width: 350px;
-            max-height: 450px;
-            overflow-y: auto; 
-            transition: opacity 0.3s;
-        }
-
-        /* Legende Items */
-        #legendContainer { 
-            display: none; 
-        } 
-        
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 5px;
-            padding: 5px;
-            border-radius: 3px;
-            cursor: pointer; 
-            transition: background-color 0.1s;
-        }
-        .legend-item:hover {
-            background-color: #e9ecef;
-        }
-        .legend-item.active {
+            top: 5px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.5rem; /* Groter 'x' */
             font-weight: bold;
-            background-color: #ffe0b2;
-            border: 1px dashed #ff9800;
+            color: #777;
+            cursor: pointer;
+            line-height: 1;
+            padding: 5px;
+            transition: color 0.2s;
+            z-index: 1010; /* Boven de inhoud */
+        }
+        .close-button:hover {
+            color: #dc3545; /* Rood bij hover */
+        }
+        /* Zorg dat de titel ruimte heeft onder de sluitknop in de legende */
+        #legendContainer h3 {
+            margin-top: 5px;
         }
 
-        /* Legende Kleurbol / Lijn */
-        .legend-color {
-            min-width: 15px;
-            height: 15px;
-            border-radius: 50%;
-            margin-right: 10px;
-            border: 1px solid #333;
-        }
-        .legend-edge {
-            min-width: 30px;
-            height: 3px;
-            margin-right: 10px;
-        }
-        
-        /* STIJLEN VOOR HET SLIDING INFO PANEEL */
-        #nodeInfoPanel {
-            position: fixed;
-            top: 0;
-            right: -300px; 
-            width: 300px;
-            height: 100%;
-            background-color: #f8f9fa;
-            border-left: 1px solid #ccc;
-            box-shadow: -4px 0 8px rgba(0,0,0,0.1);
-            z-index: 1001; 
-            transition: right 0.3s ease-in-out; 
-            padding: 20px;
-            overflow-y: auto;
-        }
-        #nodeInfoPanel h2 {
-            margin-top: 0;
-            font-size: 1.5rem;
-            border-bottom: 2px solid #007bff;
-            padding-bottom: 10px;
-        }
-        #nodeInfoPanel h4 {
-            margin-top: 15px;
-            margin-bottom: 5px;
-            color: #555;
-        }
-        #nodeInfoPanel ul {
-            list-style-type: none;
-            padding-left: 0;
-        }
-        #nodeInfoPanel li {
-            margin-bottom: 3px;
-            font-size: 0.9rem;
-        }
+        /* STIJLEN VOOR HET SLIDING INFO PANEEL */
+        #nodeInfoPanel {
+            position: fixed;
+            top: 0;
+            right: -300px; 
+            width: 300px;
+            height: 100%;
+            background-color: #f8f9fa;
+            border-left: 1px solid #ccc;
+            box-shadow: -4px 0 8px rgba(0,0,0,0.1);
+            z-index: 1001; 
+            transition: right 0.3s ease-in-out; 
+            padding: 20px;
+            overflow-y: auto;
+        }
+        #nodeInfoPanel h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        #nodeInfoPanel h4 {
+            margin-top: 15px;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        #nodeInfoPanel ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        #nodeInfoPanel li {
+            margin-bottom: 3px;
+            font-size: 0.9rem;
+        }
 
 
-    </style>
+    </style>
 </head>
 <body>
 
-    <h1>Netwerk Visualisatie Guido Gezelle</h1>
+    <h1>Netwerk Visualisatie Guido Gezelle</h1>
 
-    <div class="controls">
-        <label for="startYear">Start Jaar:</label>
-        <input type="number" id="startYear" value="1870" min="1800" max="1950" onchange="filterAndDraw()">
+    <div class="controls">
+        <label for="startYear">Start Jaar:</label>
+        <input type="number" id="startYear" value="1870" min="1800" max="1950" onchange="filterAndDraw()">
 
-        <label for="endYear">Eind Jaar:</label>
-        <input type="number" id="endYear" value="1890" min="1800" max="1950" onchange="filterAndDraw()">
-        
-        <p style="margin-top: 10px; margin-right: 20px;">Gefilterde knooppunten: <strong id="nodeCount">0</strong> | Gefilterde randen: <strong id="edgeCount">0</strong></p>
+        <label for="endYear">Eind Jaar:</label>
+        <input type="number" id="endYear" value="1890" min="1800" max="1950" onchange="filterAndDraw()">
+        
+        <p style="margin-top: 10px; margin-right: 20px;">Gefilterde knooppunten: <strong id="nodeCount">0</strong> | Gefilterde randen: <strong id="edgeCount">0</strong></p>
 
-        <button id="legendToggleButton" class="functional-button" onclick="toggleLegend()">Legende Tonen</button>
-        <button id="infoButton" class="functional-button" onclick="showInfo()">Meer Info</button>
-        <button id="resetButton" class="functional-button" onclick="resetView()">Reset Weergave</button>
-    </div>
+        <button id="legendToggleButton" class="functional-button" onclick="toggleLegend()">Legende Tonen</button>
+        <button id="infoButton" class="functional-button" onclick="showInfo()">Meer Info</button>
+        <button id="resetButton" class="functional-button" onclick="resetView()">Reset Weergave</button>
+    </div>
 
-    <div id="mynetwork"></div>
+    <div id="mynetwork"></div>
 
-    <div id="legendContainer" class="overlay-container">
-        <h3>Legende</h3>
-        <p>Klik op een categorie om te filteren.</p>
-        <div id="legendList">
-            </div>
-    </div>
-    
-    <div id="nodeInfoPanel">
-        <div id="nodeInfoContent">
-            </div>
-        <button onclick="updateInfoPanel(null)" style="margin-top: 20px;" class="functional-button">Sluiten</button>
-    </div>
+    <div id="legendContainer" class="overlay-container">
+        <button class="close-button" onclick="toggleLegend(true)">×</button>         <h3>Legende</h3>
+        <p>Klik op een categorie om te filteren.</p>
+        <div id="legendList">
+            </div>
+    </div>
+    
+    <div id="nodeInfoPanel">
+        <button class="close-button" onclick="updateInfoPanel(null)">×</button>         <div id="nodeInfoContent">
+            </div>
+        <button onclick="updateInfoPanel(null)" style="margin-top: 20px;" class="functional-button">Sluiten</button>
+    </div>
 
-    <script type="text/javascript">
-        let allNodes = [];
-        let allEdges = [];
-        let network = null;
-        let originalNodesData = null; // Vis.js DataSet van de ge-timefilterde nodes
-        let originalEdgesData = null; // Vis.js DataSet van de ge-timefilterde edges
-        const container = document.getElementById('mynetwork');
-        let selectedNode = null; // ID van de geselecteerde node voor highlighting
-        let currentCategoryFilter = { category: null, isNode: null }; // State voor categoriefilter
+    <script type="text/javascript">
+        let allNodes = [];
+        let allEdges = [];
+        let network = null;
+        let originalNodesData = null; // Vis.js DataSet van de ge-timefilterde nodes
+        let originalEdgesData = null; // Vis.js DataSet van de ge-timefilterde edges
+        const container = document.getElementById('mynetwork');
+        let selectedNode = null; // ID van de geselecteerde node voor highlighting
+        let currentCategoryFilter = { category: null, isNode: null }; // State voor categoriefilter
 
-        // --- Vis.js Options ---
-        const options = {
-            nodes: {
-                shape: 'dot',
-                font: { size: 12, color: '#333' },
-                borderWidth: 2
-            },
-            edges: {
-                arrows: 'to',
-                color: { inherit: true },
-                smooth: { type: 'continuous' }
-            },
-            physics: {
-                enabled: false 
-            }
-        };
-        // --------------------------------------------------------------------
+        // --- Vis.js Options ---
+        const options = {
+            nodes: {
+                shape: 'dot',
+                font: { size: 12, color: '#333' },
+                borderWidth: 2
+            },
+            edges: {
+                arrows: 'to',
+                color: { inherit: true },
+                smooth: { type: 'continuous' }
+            },
+            physics: {
+                enabled: false 
+            }
+        };
+        // --------------------------------------------------------------------
 
-        // --- Data Laden en Parsen Functies ---
-        async function loadData() {
-            try {
-                // Let op: De Papa Parse URL in de <head> is nu gecorrigeerd.
-                const nodesData = await parseCSV('nodes.csv');
-                allNodes = nodesData.map(d => ({
-                    id: d.Id, 
-                    label: d.Label, 
-                    group: d.category, // Categorie voor Legende
-                    title: `Naam: ${d.Label}\nType: ${d.category}\nStart: ${d.startyearcorfixvalue}\nEind: ${d.endyearcor}`,
-                    startYear: parseInt(d.startyearcorfixvalue), 
-                    endYear: parseInt(d.endyearcor),
-                    size: parseFloat(d.Size) || 15,
-                    color: d.Color,
-                    x: parseFloat(d.X), 
-                    y: parseFloat(d.Y),
-                    fixed: true 
-                }));
+        // --- Data Laden en Parsen Functies ---
+        async function loadData() {
+            try {
+                // Let op: De Papa Parse URL in de <head> is nu gecorrigeerd.
+                const nodesData = await parseCSV('nodes.csv');
+                allNodes = nodesData.map(d => ({
+                    id: d.Id, 
+                    label: d.Label, 
+                    group: d.category, // Categorie voor Legende
+                    title: `Naam: ${d.Label}\nType: ${d.category}\nStart: ${d.startyearcorfixvalue}\nEind: ${d.endyearcor}`,
+                    startYear: parseInt(d.startyearcorfixvalue), 
+                    endYear: parseInt(d.endyearcor),
+                    size: parseFloat(d.Size) || 15,
+                    color: d.Color,
+                    x: parseFloat(d.X), 
+                    y: parseFloat(d.Y),
+                    fixed: true 
+                }));
 
-                const edgesData = await parseCSV('edges.csv');
-                allEdges = edgesData.map(d => ({
-                    id: d.Id, 
-                    from: d.Source, 
-                    to: d.Target, 
-                    label: d.rollabel, // Categorie voor Legende
-                    title: `Relatie: ${d.rollabel}\nJaar: ${d.finalstartyearfixvalue}-${d.finalendyearfixvalue}`,
-                    startYear: parseInt(d.finalstartyearfixvalue), 
-                    endYear: parseInt(d.finalendyearfixvalue),
-                    color: d.Color
-                }));
-                
-                filterAndDraw();
-                buildLegend(); // Bouw de legende nadat de data geladen is
+                const edgesData = await parseCSV('edges.csv');
+                allEdges = edgesData.map(d => ({
+                    id: d.Id, 
+                    from: d.Source, 
+                    to: d.Target, 
+                    label: d.rollabel, // Categorie voor Legende
+                    title: `Relatie: ${d.rollabel}\nJaar: ${d.finalstartyearfixvalue}-${d.finalendyearfixvalue}`,
+                    startYear: parseInt(d.finalstartyearfixvalue), 
+                    endYear: parseInt(d.finalendyearfixvalue),
+                    color: d.Color
+                }));
+                
+                filterAndDraw();
+                buildLegend(); // Bouw de legende nadat de data geladen is
 
-            } catch (error) {
-                console.error("Fout bij het laden van de bestanden:", error);
-                // Vriendelijke foutmelding
-                container.innerHTML = "<h2>Data Laadfout: Netwerk is leeg</h2><p>Controleer of de bestanden **'nodes.csv'** en **'edges.csv'** in **dezelfde map** staan als de `index.html`. Open de browser **Console (F12)** voor gedetailleerde fouten.</p>";
-            }
-        }
+            } catch (error) {
+                console.error("Fout bij het laden van de bestanden:", error);
+                // Vriendelijke foutmelding
+                container.innerHTML = "<h2>Data Laadfout: Netwerk is leeg</h2><p>Controleer of de bestanden **'nodes.csv'** en **'edges.csv'** in **dezelfde map** staan als de `index.html`. Open de browser **Console (F12)** voor gedetailleerde fouten.</p>";
+            }
+        }
 
-        function parseCSV(url) {
-            return new Promise((resolve, reject) => {
-                // Papa.parse is nu beschikbaar vanwege de gecorrigeerde URL
-                Papa.parse(url, {
-                    download: true,
-                    header: true,
-                    skipEmptyLines: true,
-                    dynamicTyping: true, 
-                    complete: (results) => {
-                         if (results.data.length === 0) {
-                            reject(new Error(`CSV-bestand ${url} is leeg.`));
-                         }
-                         resolve(results.data);
-                    },
-                    error: (error) => reject(error)
-                });
-            });
-        }
-        // --------------------------------------------------------------------
-
-
-        // --- Filtering en Drawing Functies ---
-        function filterAndDraw() {
-            const startYear = parseInt(document.getElementById('startYear').value);
-            const endYear = parseInt(document.getElementById('endYear').value);
-
-            if (isNaN(startYear) || isNaN(endYear)) return;
-
-            // 1. Tijdfiltering (Basis)
-            let filteredEdges = allEdges.filter(edge => {
-                return edge.startYear <= endYear && edge.endYear >= startYear;
-            });
-
-            // 2. Nodes bepalen op basis van tijd-gefilterde Edges
-            let connectedNodeIds = new Set();
-            filteredEdges.forEach(edge => {
-                connectedNodeIds.add(edge.from);
-                connectedNodeIds.add(edge.to);
-            });
-            let filteredNodes = allNodes.filter(node => connectedNodeIds.has(node.id));
+        function parseCSV(url) {
+            return new Promise((resolve, reject) => {
+                // Papa.parse is nu beschikbaar vanwege de gecorrigeerde URL
+                Papa.parse(url, {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: true,
+                    dynamicTyping: true, 
+                    complete: (results) => {
+                         if (results.data.length === 0) {
+                            reject(new Error(`CSV-bestand ${url} is leeg.`));
+                         }
+                         resolve(results.data);
+                    },
+                    error: (error) => reject(error)
+                });
+            });
+        }
+        // --------------------------------------------------------------------
 
 
-            // 3. Categorie Filtering (OP TOP VAN TIJDFILTER)
-            if (currentCategoryFilter.category) {
-                const category = currentCategoryFilter.category;
-                const isNodeCategory = currentCategoryFilter.isNode;
-                
-                let finalEdges = filteredEdges;
+        // --- Filtering en Drawing Functies ---
+        function filterAndDraw() {
+            const startYear = parseInt(document.getElementById('startYear').value);
+            const endYear = parseInt(document.getElementById('endYear').value);
 
-                if (isNodeCategory) {
-                    // Node filter: vind edges verbonden met de geselecteerde node categorie
-                    const categoryNodeIds = new Set(filteredNodes.filter(n => n.group === category).map(n => n.id));
-                    finalEdges = filteredEdges.filter(edge => categoryNodeIds.has(edge.from) || categoryNodeIds.has(edge.to));
-                } else {
-                    // Edge filter: filter edges op de geselecteerde edge categorie
-                    finalEdges = filteredEdges.filter(edge => edge.label === category);
-                }
+            if (isNaN(startYear) || isNaN(endYear)) return;
 
-                // Node set aanpassen: alleen nodes tonen die verbonden zijn door de 'finalEdges'
-                const finalConnectedNodeIds = new Set();
-                finalEdges.forEach(edge => {
-                    finalConnectedNodeIds.add(edge.from);
-                    finalConnectedNodeIds.add(edge.to);
-                });
-                
-                filteredEdges = finalEdges;
-                filteredNodes = allNodes.filter(node => finalConnectedNodeIds.has(node.id));
-            }
-            
-            // 4. Update de tellers
-            document.getElementById('nodeCount').textContent = filteredNodes.length;
-            document.getElementById('edgeCount').textContent = filteredEdges.length;
+            // 1. Tijdfiltering (Basis)
+            let filteredEdges = allEdges.filter(edge => {
+                return edge.startYear <= endYear && edge.endYear >= startYear;
+            });
 
-            // 5. Creëer/Update de Vis.js DataSets
-            originalNodesData = new vis.DataSet(filteredNodes);
-            originalEdgesData = new vis.DataSet(filteredEdges);
-
-            const data = {
-                nodes: originalNodesData,
-                edges: originalEdgesData
-            };
-
-            if (network) {
-                network.setData(data);
-                network.fit(); 
-            } else {
-                network = new vis.Network(container, data, options);
-                network.on("click", handleNodeClick);
-                network.fit(); 
-            }
-            
-            // 6. Reset state en UI
-            selectedNode = null; 
-            resetHighlighting(false); 
-            updateInfoPanel(null); // Sluit het info paneel
-            updateLegendHighlight(); // Update visuele highlight in legende
-        }
-        // --------------------------------------------------------------------
+            // 2. Nodes bepalen op basis van tijd-gefilterde Edges
+            let connectedNodeIds = new Set();
+            filteredEdges.forEach(edge => {
+                connectedNodeIds.add(edge.from);
+                connectedNodeIds.add(edge.to);
+            });
+            let filteredNodes = allNodes.filter(node => connectedNodeIds.has(node.id));
 
 
-        // --- UI Interactie Functies ---
-        
-        function resetView() {
-            // Reset de jaartallen NIET, maar reset wel de categoriefilter
-            currentCategoryFilter = { category: null, isNode: null };
-            filterAndDraw(); // Roept resetHighlighting en updateInfoPanel aan
-        }
-        
-        /**
-         * Reset de highlighting van alle nodes en edges.
-         */
-        function resetHighlighting(unselect = true) {
-            if (!originalNodesData || !originalEdgesData) return;
+            // 3. Categorie Filtering (OP TOP VAN TIJDFILTER)
+            if (currentCategoryFilter.category) {
+                const category = currentCategoryFilter.category;
+                const isNodeCategory = currentCategoryFilter.isNode;
+                
+                let finalEdges = filteredEdges;
 
-            const updatedNodes = [];
-            const updatedEdges = [];
+                if (isNodeCategory) {
+                    // Node filter: vind edges verbonden met de geselecteerde node categorie
+                    const categoryNodeIds = new Set(filteredNodes.filter(n => n.group === category).map(n => n.id));
+                    finalEdges = filteredEdges.filter(edge => categoryNodeIds.has(edge.from) || categoryNodeIds.has(edge.to));
+                } else {
+                    // Edge filter: filter edges op de geselecteerde edge categorie
+                    finalEdges = filteredEdges.filter(edge => edge.label === category);
+                }
 
-            // Reset stijlen van nodes
-            originalNodesData.forEach(node => {
-                updatedNodes.push({
-                    id: node.id,
-                    opacity: 1.0,
-                    color: node.color,
-                    borderWidth: 2
-                });
-            });
+                // Node set aanpassen: alleen nodes tonen die verbonden zijn door de 'finalEdges'
+                const finalConnectedNodeIds = new Set();
+                finalEdges.forEach(edge => {
+                    finalConnectedNodeIds.add(edge.from);
+                    finalConnectedNodeIds.add(edge.to);
+                });
+                
+                filteredEdges = finalEdges;
+                filteredNodes = allNodes.filter(node => finalConnectedNodeIds.has(node.id));
+            }
+            
+            // 4. Update de tellers
+            document.getElementById('nodeCount').textContent = filteredNodes.length;
+            document.getElementById('edgeCount').textContent = filteredEdges.length;
 
-            // Reset stijlen van edges
-            originalEdgesData.forEach(edge => {
-                updatedEdges.push({
-                    id: edge.id,
-                    width: 1,
-                    color: { color: edge.color || '#333', opacity: 1.0 }
-                });
-            });
-            
-            originalNodesData.update(updatedNodes);
-            originalEdgesData.update(updatedEdges);
-            
-            if (unselect && network) {
-                network.unselectAll();
-            }
-            
-            updateInfoPanel(null); // Sluit het paneel
-        }
-        
-        /**
-         * Behandelt de klik op een node of op de achtergrond.
-         */
-        function handleNodeClick(params) {
-            const clickedNodeId = params.nodes.length > 0 ? params.nodes[0] : null;
+            // 5. Creëer/Update de Vis.js DataSets
+            originalNodesData = new vis.DataSet(filteredNodes);
+            originalEdgesData = new vis.DataSet(filteredEdges);
 
-            if (clickedNodeId) {
-                if (clickedNodeId === selectedNode) {
-                    // Scenario 1: Klik op dezelfde node (RESET)
-                    selectedNode = null;
-                    resetHighlighting();
-                    network.fit();
-                } else {
-                    // Scenario 2: Klik op een nieuwe node (SELECT)
-                    selectedNode = clickedNodeId;
-                    highlightNode(selectedNode);
-                    updateInfoPanel(selectedNode);
-                }
-            } else {
-                // Scenario 3: Klik op achtergrond (RESET)
-                selectedNode = null;
-                resetHighlighting();
-                network.fit(); 
-            }
-            
-            // Houd de interne selectie van Vis.js gesynchroniseerd (voor de ring)
-            if (selectedNode) {
-                 network.selectNodes([selectedNode], true);
-            } else {
-                 network.unselectAll();
-            }
-        }
+            const data = {
+                nodes: originalNodesData,
+                edges: originalEdgesData
+            };
 
-        /**
-         * Highlight een specifieke node en zijn directe connecties.
-         */
-        function highlightNode(nodeId) {
-            const updatedNodes = [];
-            const updatedEdges = [];
-            const connectedEdges = network.getConnectedEdges(nodeId);
-            
-            const connectedNodeIds = new Set();
-            connectedEdges.forEach(edgeId => {
-                const edge = originalEdgesData.get(edgeId); 
-                if (edge) { 
-                    if (edge.from !== nodeId) connectedNodeIds.add(edge.from);
-                    if (edge.to !== nodeId) connectedNodeIds.add(edge.to);
-                }
-            });
-
-            originalNodesData.forEach(node => {
-                const isSelected = node.id === nodeId;
-                const isConnected = connectedNodeIds.has(node.id);
-                let update = { id: node.id };
-
-                if (isSelected || isConnected) {
-                    update.opacity = 1.0;
-                    update.color = node.color; 
-                    update.borderWidth = isSelected ? 3 : 2;
-                } else {
-                    update.opacity = 0.3;
-                    update.color = { background: '#ccc', border: '#999' }; 
-                }
-                updatedNodes.push(update);
-            });
-
-            originalEdgesData.forEach(edge => {
-                const isConnected = connectedEdges.includes(edge.id);
-                let update = { id: edge.id };
-
-                if (isConnected) {
-                    update.width = 3;
-                    update.color = { color: edge.color || '#333', opacity: 1.0 }; 
-                } else {
-                    update.width = 1;
-                    update.color = { color: '#ccc', opacity: 0.1 };
-                }
-                updatedEdges.push(update);
-            });
-
-            originalNodesData.update(updatedNodes);
-            originalEdgesData.update(updatedEdges);
-        }
-        
-        // --------------------------------------------------------------------
+            if (network) {
+                network.setData(data);
+                network.fit(); 
+            } else {
+                network = new vis.Network(container, data, options);
+                network.on("click", handleNodeClick);
+                network.fit(); 
+            }
+            
+            // 6. Reset state en UI
+            selectedNode = null; 
+            resetHighlighting(false); 
+            updateInfoPanel(null); // Sluit het info paneel
+            updateLegendHighlight(); // Update visuele highlight in legende
+        }
+        // --------------------------------------------------------------------
 
 
-        // --- Legende Functies ---
-        
-        function toggleLegend(hide = false) {
-            const container = document.getElementById('legendContainer');
-            const button = document.getElementById('legendToggleButton');
-            if (hide || container.style.display === 'block') {
-                container.style.display = 'none';
-                button.textContent = 'Legende Tonen';
-            } else {
-                container.style.display = 'block';
-                button.textContent = 'Legende Verbergen';
-            }
-        }
-        
-        function toggleCategoryFilter(category, isNode) {
-            if (currentCategoryFilter.category === category && currentCategoryFilter.isNode === isNode) {
-                // Dubbelklik op dezelfde categorie: Reset filter
-                currentCategoryFilter = { category: null, isNode: null };
-            } else {
-                // Nieuwe categorie klik: Pas filter toe
-                currentCategoryFilter = { category: category, isNode: isNode };
-            }
-            
-            filterAndDraw();
-            // toggleLegend(true); // Uitschakelen, de gebruiker kan hem zelf verbergen indien gewenst.
-        }
+        // --- UI Interactie Functies ---
+        
+        function resetView() {
+            // Reset de jaartallen NIET, maar reset wel de categoriefilter
+            currentCategoryFilter = { category: null, isNode: null };
+            filterAndDraw(); // Roept resetHighlighting en updateInfoPanel aan
+        }
+        
+        /**
+         * Reset de highlighting van alle nodes en edges.
+         */
+        function resetHighlighting(unselect = true) {
+            if (!originalNodesData || !originalEdgesData) return;
 
-        function updateLegendHighlight() {
-            document.querySelectorAll('.legend-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            if (currentCategoryFilter.category) {
-                // Maak een veilige ID van de categorie (vervang spaties door underscores)
-                const safeCategory = currentCategoryFilter.category.replace(/\s/g, '_');
-                const id = `legend-${currentCategoryFilter.isNode ? 'node' : 'edge'}-${safeCategory}`;
-                const activeItem = document.getElementById(id);
-                if (activeItem) {
-                    activeItem.classList.add('active');
-                }
-            }
-        }
+            const updatedNodes = [];
+            const updatedEdges = [];
 
-        function buildLegend() {
-            const legendList = document.getElementById('legendList');
-            const uniqueNodeCategories = new Map();
-            const uniqueEdgeCategories = new Map();
+            // Reset stijlen van nodes
+            originalNodesData.forEach(node => {
+                updatedNodes.push({
+                    id: node.id,
+                    opacity: 1.0,
+                    color: node.color,
+                    borderWidth: 2
+                });
+            });
 
-            // 1. Unieke Node Categorieën verzamelen
-            allNodes.forEach(node => {
-                if (node.group && !uniqueNodeCategories.has(node.group)) {
-                    uniqueNodeCategories.set(node.group, node.color);
-                }
-            });
-            
-            // 2. Unieke Edge Categorieën verzamelen
-            allEdges.forEach(edge => {
-                if (edge.label && !uniqueEdgeCategories.has(edge.label)) {
-                    uniqueEdgeCategories.set(edge.label, edge.color);
-                }
-            });
+            // Reset stijlen van edges
+            originalEdgesData.forEach(edge => {
+                updatedEdges.push({
+                    id: edge.id,
+                    width: 1,
+                    color: { color: edge.color || '#333', opacity: 1.0 }
+                });
+            });
+            
+            originalNodesData.update(updatedNodes);
+            originalEdgesData.update(updatedEdges);
+            
+            if (unselect && network) {
+                network.unselectAll();
+            }
+            
+            updateInfoPanel(null); // Sluit het paneel
+        }
+        
+        /**
+         * Behandelt de klik op een node of op de achtergrond.
+         */
+        function handleNodeClick(params) {
+            const clickedNodeId = params.nodes.length > 0 ? params.nodes[0] : null;
+
+            if (clickedNodeId) {
+                if (clickedNodeId === selectedNode) {
+                    // Scenario 1: Klik op dezelfde node (RESET)
+                    selectedNode = null;
+                    resetHighlighting();
+                    network.fit();
+                } else {
+                    // Scenario 2: Klik op een nieuwe node (SELECT)
+                    selectedNode = clickedNodeId;
+                    highlightNode(selectedNode);
+                    updateInfoPanel(selectedNode);
+                }
+            } else {
+                // Scenario 3: Klik op achtergrond (RESET)
+                selectedNode = null;
+                resetHighlighting();
+                network.fit(); 
+            }
+            
+            // Houd de interne selectie van Vis.js gesynchroniseerd (voor de ring)
+            if (selectedNode) {
+                 network.selectNodes([selectedNode], true);
+            } else {
+                 network.unselectAll();
+            }
+        }
+
+        /**
+         * Highlight een specifieke node en zijn directe connecties.
+         */
+        function highlightNode(nodeId) {
+            const updatedNodes = [];
+            const updatedEdges = [];
+            const connectedEdges = network.getConnectedEdges(nodeId);
+            
+            const connectedNodeIds = new Set();
+            connectedEdges.forEach(edgeId => {
+                const edge = originalEdgesData.get(edgeId); 
+                if (edge) { 
+                    if (edge.from !== nodeId) connectedNodeIds.add(edge.from);
+                    if (edge.to !== nodeId) connectedNodeIds.add(edge.to);
+                }
+            });
+
+            originalNodesData.forEach(node => {
+                const isSelected = node.id === nodeId;
+                const isConnected = connectedNodeIds.has(node.id);
+                let update = { id: node.id };
+
+                if (isSelected || isConnected) {
+                    update.opacity = 1.0;
+                    update.color = node.color; 
+                    update.borderWidth = isSelected ? 3 : 2;
+                } else {
+                    update.opacity = 0.3;
+                    update.color = { background: '#ccc', border: '#999' }; 
+                }
+                updatedNodes.push(update);
+            });
+
+            originalEdgesData.forEach(edge => {
+                const isConnected = connectedEdges.includes(edge.id);
+                let update = { id: edge.id };
+
+                if (isConnected) {
+                    update.width = 3;
+                    update.color = { color: edge.color || '#333', opacity: 1.0 }; 
+                } else {
+                    update.width = 1;
+                    update.color = { color: '#ccc', opacity: 0.1 };
+                }
+                updatedEdges.push(update);
+            });
+
+            originalNodesData.update(updatedNodes);
+            originalEdgesData.update(updatedEdges);
+        }
+        
+        // --------------------------------------------------------------------
 
 
-            let html = '<h4>Knooppunttypes (Nodes)</h4>';
-            // Node Legende
-            uniqueNodeCategories.forEach((color, category) => {
-                const safeCategory = category.replace(/\s/g, '_');
-                const id = `legend-node-${safeCategory}`;
-                html += `
-                    <div class="legend-item" id="${id}" onclick="toggleCategoryFilter('${category}', true)">
-                        <div class="legend-color" style="background-color: ${color}; border-color: ${color === '#ffffff' ? '#333' : color};"></div>
-                        <span>${category}</span>
-                    </div>
-                `;
-            });
-            
-            html += '<br><h4>Relatietypes (Edges)</h4>';
-            // Edge Legende
-            uniqueEdgeCategories.forEach((color, label) => {
-                const safeLabel = label.replace(/\s/g, '_');
-                const id = `legend-edge-${safeLabel}`;
-                html += `
-                    <div class="legend-item" id="${id}" onclick="toggleCategoryFilter('${label}', false)">
-                        <div class="legend-edge" style="background-color: ${color};"></div>
-                        <span>${label}</span>
-                    </div>
-                `;
-            });
+        // --- Legende Functies ---
+        
+        function toggleLegend(hide = false) {
+            const container = document.getElementById('legendContainer');
+            const button = document.getElementById('legendToggleButton');
+            if (hide || container.style.display === 'block') {
+                container.style.display = 'none';
+                button.textContent = 'Legende Tonen';
+            } else {
+                container.style.display = 'block';
+                button.textContent = 'Legende Verbergen';
+            }
+        }
+        
+        function toggleCategoryFilter(category, isNode) {
+            if (currentCategoryFilter.category === category && currentCategoryFilter.isNode === isNode) {
+                // Dubbelklik op dezelfde categorie: Reset filter
+                currentCategoryFilter = { category: null, isNode: null };
+            } else {
+                // Nieuwe categorie klik: Pas filter toe
+                currentCategoryFilter = { category: category, isNode: isNode };
+            }
+            
+            filterAndDraw();
+            // toggleLegend(true); // Uitschakelen, de gebruiker kan hem zelf verbergen indien gewenst.
+        }
 
-            legendList.innerHTML = html;
-        }
+        function updateLegendHighlight() {
+            document.querySelectorAll('.legend-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            if (currentCategoryFilter.category) {
+                // Maak een veilige ID van de categorie (vervang spaties door underscores)
+                const safeCategory = currentCategoryFilter.category.replace(/\s/g, '_');
+                const id = `legend-${currentCategoryFilter.isNode ? 'node' : 'edge'}-${safeCategory}`;
+                const activeItem = document.getElementById(id);
+                if (activeItem) {
+                    activeItem.classList.add('active');
+                }
+            }
+        }
 
-        // --------------------------------------------------------------------
+        function buildLegend() {
+            const legendList = document.getElementById('legendList');
+            const uniqueNodeCategories = new Map();
+            const uniqueEdgeCategories = new Map();
+
+            // 1. Unieke Node Categorieën verzamelen
+            allNodes.forEach(node => {
+                if (node.group && !uniqueNodeCategories.has(node.group)) {
+                    uniqueNodeCategories.set(node.group, node.color);
+                }
+            });
+            
+            // 2. Unieke Edge Categorieën verzamelen
+            allEdges.forEach(edge => {
+                if (edge.label && !uniqueEdgeCategories.has(edge.label)) {
+                    uniqueEdgeCategories.set(edge.label, edge.color);
+                }
+            });
 
 
-        // --- Info Paneel Functies ---
-        
-        function updateInfoPanel(nodeId) {
-            const panel = document.getElementById('nodeInfoPanel');
-            const content = document.getElementById('nodeInfoContent');
-            
-            if (!nodeId) {
-                // Verberg paneel
-                panel.style.right = '-300px'; 
-                content.innerHTML = '';
-                return;
-            }
+            let html = '<h4>Knooppunttypes (Nodes)</h4>';
+            // Node Legende
+            uniqueNodeCategories.forEach((color, category) => {
+                const safeCategory = category.replace(/\s/g, '_');
+                const id = `legend-node-${safeCategory}`;
+                html += `
+                    <div class="legend-item" id="${id}" onclick="toggleCategoryFilter('${category}', true)">
+                        <div class="legend-color" style="background-color: ${color}; border-color: ${color === '#ffffff' ? '#333' : color};"></div>
+                        <span>${category}</span>
+                    </div>
+                `;
+            });
+            
+            html += '<br><h4>Relatietypes (Edges)</h4>';
+            // Edge Legende
+            uniqueEdgeCategories.forEach((color, label) => {
+                const safeLabel = label.replace(/\s/g, '_');
+                const id = `legend-edge-${safeLabel}`;
+                html += `
+                    <div class="legend-item" id="${id}" onclick="toggleCategoryFilter('${label}', false)">
+                        <div class="legend-edge" style="background-color: ${color};"></div>
+                        <span>${label}</span>
+                    </div>
+                `;
+            });
 
-            const selectedNode = originalNodesData.get(nodeId);
-            if (!selectedNode) {
-                 panel.style.right = '-300px';
-                 return;
-            }
+            legendList.innerHTML = html;
+        }
 
-            const connectedEdges = originalEdgesData.get({
-                filter: function(edge) {
-                    return edge.from === nodeId || edge.to === nodeId;
-                }
-            });
-            
-            const incomingNodes = [];
-            const outgoingNodes = [];
-            
-            connectedEdges.forEach(edge => {
-                const isOutgoing = edge.from === nodeId;
-                const connectedId = isOutgoing ? edge.to : edge.from;
-                const connectedNode = originalNodesData.get(connectedId);
-                
-                if (connectedNode) {
-                    const label = connectedNode.label;
-                    const relationship = edge.label;
-                    
-                    if (isOutgoing) {
-                        outgoingNodes.push(`<li>&#8674; ${relationship}: <strong>${label}</strong></li>`);
-                    } else {
-                        incomingNodes.push(`<li>&#8676; ${relationship}: <strong>${label}</strong></li>`);
-                    }
-                }
-            });
+        // --------------------------------------------------------------------
 
-            let html = `
-                <h2>${selectedNode.label}</h2>
-                <p>Type: <strong>${selectedNode.group}</strong></p>
-                <hr>
-                
-                <h4>Uitgaande Relaties (${outgoingNodes.length})</h4>
-                ${outgoingNodes.length > 0 ? `<ul>${outgoingNodes.join('')}</ul>` : `<p>Geen uitgaande relaties in de huidige weergave.</p>`}
-                
-                <h4>Inkomende Relaties (${incomingNodes.length})</h4>
-                ${incomingNodes.length > 0 ? `<ul>${incomingNodes.join('')}</ul>` : `<p>Geen inkomende relaties in de huidige weergave.</p>`}
-            `;
-            
-            content.innerHTML = html;
-            panel.style.right = '0'; // Schuif in
-        }
 
-        /**
-         * Toont een pop-up met achtergrondinformatie.
-         */
-        function showInfo() {
-            alert(
-                "Informatie over deze Visualisatie\n\n" +
-                "Dit netwerk visualiseert de relaties rond een centrale figuur of een corpus documenten, in dit geval Guido Gezelle en zijn correspondenten. De lay-out is vooraf berekend (via Gephi of een vergelijkbare tool) en vastgezet op basis van X- en Y-coördinaten, wat zorgt voor een stabiele weergave.\n\n" +
-                "Functionaliteiten:\n" +
-                "1. Tijdlijn: Filter relaties op basis van start- en eindjaar.\n" +
-                "2. Interactie: Klik op een knooppunt (Node) om de directe relaties te highlighten. Klik nogmaals op dezelfde knoop, of op de lege achtergrond, om de highlighting én het info paneel te resetten.\n" +
-                "3. Legende: Klik op een categorie in de legende om te filteren.\n" +
-                "4. Info Paneel: Bij het aanklikken van een node schuift er een paneel in met alle in- en uitgaande connecties (namen en relatietype)."
-            );
-        }
+        // --- Info Paneel Functies ---
+        
+        function updateInfoPanel(nodeId) {
+            const panel = document.getElementById('nodeInfoPanel');
+            const content = document.getElementById('nodeInfoContent');
+            
+            if (!nodeId) {
+                // Verberg paneel
+                panel.style.right = '-300px'; 
+                content.innerHTML = '';
+                return;
+            }
 
-        // Start het proces
-        loadData();
-    </script>
+            const selectedNode = originalNodesData.get(nodeId);
+            if (!selectedNode) {
+                 panel.style.right = '-300px';
+                 return;
+            }
+
+            const connectedEdges = originalEdgesData.get({
+                filter: function(edge) {
+                    return edge.from === nodeId || edge.to === nodeId;
+                }
+            });
+            
+            const incomingNodes = [];
+            const outgoingNodes = [];
+            
+            connectedEdges.forEach(edge => {
+                const isOutgoing = edge.from === nodeId;
+                const connectedId = isOutgoing ? edge.to : edge.from;
+                const connectedNode = originalNodesData.get(connectedId);
+                
+                if (connectedNode) {
+                    const label = connectedNode.label;
+                    const relationship = edge.label;
+                    
+                    if (isOutgoing) {
+                        outgoingNodes.push(`<li>&#8674; ${relationship}: <strong>${label}</strong></li>`);
+                    } else {
+                        incomingNodes.push(`<li>&#8676; ${relationship}: <strong>${label}</strong></li>`);
+                    }
+                }
+            });
+
+            let html = `
+                <h2>${selectedNode.label}</h2>
+                <p>Type: <strong>${selectedNode.group}</strong></p>
+                <hr>
+                
+                <h4>Uitgaande Relaties (${outgoingNodes.length})</h4>
+                ${outgoingNodes.length > 0 ? `<ul>${outgoingNodes.join('')}</ul>` : `<p>Geen uitgaande relaties in de huidige weergave.</p>`}
+                
+                <h4>Inkomende Relaties (${incomingNodes.length})</h4>
+                ${incomingNodes.length > 0 ? `<ul>${incomingNodes.join('')}</ul>` : `<p>Geen inkomende relaties in de huidige weergave.</p>`}
+            `;
+            
+            content.innerHTML = html;
+            panel.style.right = '0'; // Schuif in
+        }
+
+        /**
+         * Toont een pop-up met achtergrondinformatie.
+         */
+        function showInfo() {
+            alert(
+                "Informatie over deze Visualisatie\n\n" +
+                "Dit netwerk visualiseert de relaties rond een centrale figuur of een corpus documenten, in dit geval Guido Gezelle en zijn correspondenten. De lay-out is vooraf berekend (via Gephi of een vergelijkbare tool) en vastgezet op basis van X- en Y-coördinaten, wat zorgt voor een stabiele weergave.\n\n" +
+                "Functionaliteiten:\n" +
+                "1. Tijdlijn: Filter relaties op basis van start- en eindjaar.\n" +
+                "2. Interactie: Klik op een knooppunt (Node) om de directe relaties te highlighten. Klik nogmaals op dezelfde knoop, of op de lege achtergrond, om de highlighting én het info paneel te resetten.\n" +
+                "3. Legende: Klik op een categorie in de legende om te filteren. (Nu met handige 'x' sluitknop!)\n" +
+                "4. Info Paneel: Bij het aanklikken van een node schuift er een paneel in met alle in- en uitgaande connecties (namen en relatietype). (Nu met handige 'x' sluitknop!)\n"
+            );
+        }
+
+        // Start het proces
+        loadData();
+    </script>
 
 </body>
 </html>
