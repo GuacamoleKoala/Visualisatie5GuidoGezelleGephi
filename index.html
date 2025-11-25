@@ -1,173 +1,38 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Gezelle Netwerk Visualisatie</title>
-    <script type="text/javascript" src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <style>
-        /* Container MOET een hoogte en breedte hebben */
-        #mynetwork {
-            width: 100%;
-            height: 600px;
-            border: 1px solid lightgray;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+// Configuraties voor Vis.js
+const options = {
+    nodes: {
+        shape: 'dot',
+        size: 10,
+        font: { size: 12, color: '#333' },
+        borderWidth: 2
+    },
+    edges: {
+        arrows: 'to',
+        color: { inherit: true },
+        smooth: { type: 'continuous' }
+    },
+    physics: {
+        // Schakel de fysica in (blijft nodig voor layout)
+        enabled: true, 
+        // Snellere solver dan BarnesHut (goed voor kleinere netwerken)
+        solver: 'forceAtlas2Based', 
+        forceAtlas2Based: {
+            // Pas de zwaartekracht aan om de knopen wat losser te houden
+            gravitationalConstant: -50, 
+            centralGravity: 0.005,
+            springLength: 100,
+            springConstant: 0.18
+        },
+        // *** CRUCIALE AANPASSING VOOR SNELHEID: ***
+        // Stabilisatie zorgt ervoor dat de lay-out stopt.
+        stabilization: { 
+            enabled: true, 
+            // Verlaag iterations: stopt na 100 iteraties (was 1000)
+            iterations: 100, 
+            // Verhoog fitAfterStabilized: zoomt in op het netwerk na het stabiliseren
+            fitAfterStabilized: true, 
+            // Verlaag de tolerance: zorgt ervoor dat de stabilisatie sneller stopt
+            tolerance: 0.001 
         }
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .controls { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; background-color: #f9f9f9; }
-        .controls label, .controls input { margin-right: 20px; }
-    </style>
-</head>
-<body>
-
-    <h1>Netwerk Visualisatie</h1>
-
-    <div class="controls">
-        <label for="startYear">Start Jaar:</label>
-        <input type="number" id="startYear" value="1870" min="1800" max="1950" onchange="filterAndDraw()">
-
-        <label for="endYear">Eind Jaar:</label>
-        <input type="number" id="endYear" value="1890" min="1800" max="1950" onchange="filterAndDraw()">
-        
-        <p style="margin-top: 10px;">Gefilterde knooppunten: <strong id="nodeCount">0</strong> | Gefilterde randen: <strong id="edgeCount">0</strong></p>
-    </div>
-
-    <div id="mynetwork"></div>
-
-    <script type="text/javascript">
-        let allNodes = [];
-        let allEdges = [];
-        let network = null;
-        const container = document.getElementById('mynetwork');
-
-        const options = {
-            nodes: {
-                shape: 'dot',
-                size: 10,
-                font: { size: 12, color: '#333' },
-                borderWidth: 2
-            },
-            edges: {
-                arrows: 'to',
-                color: { inherit: true },
-                smooth: { type: 'continuous' }
-            },
-            physics: {
-                enabled: true,
-                barnesHut: {
-                    gravitationalConstant: -2000,
-                    centralGravity: 0.3,
-                    springLength: 95,
-                    springConstant: 0.04
-                },
-                solver: 'barnesHut',
-                stabilization: { enabled: true, iterations: 1000 }
-            }
-        };
-
-        async function loadData() {
-            try {
-                // Laden van nodes.csv
-                const nodesData = await parseCSV('nodes.csv');
-                allNodes = nodesData.map(d => ({
-                    // BELANGRIJK: Gebruik de exacte, hoofdlettergevoelige namen uit nodes.csv
-                    id: d.Id, // Headers in CSV: Id 
-                    label: d.Label, // Headers in CSV: Label 
-                    group: d.category, // Headers in CSV: category 
-                    title: `Type: ${d.category}\nStart: ${d.startyearcorfixvalue}\nEind: ${d.endyearcor}`,
-                    startYear: parseInt(d.startyearcorfixvalue), // Headers in CSV: startyearcorfixvalue 
-                    endYear: parseInt(d.endyearcor) // Headers in CSV: endyearcor 
-                }));
-
-                // Laden van edges.csv
-                const edgesData = await parseCSV('edges.csv');
-                allEdges = edgesData.map(d => ({
-                    // BELANGRIJK: Gebruik de exacte, hoofdlettergevoelige namen uit edges.csv
-                    from: d.Source, // Headers in CSV: Source 
-                    to: d.Target, // Headers in CSV: Target 
-                    label: d.rollabel, // Headers in CSV: rollabel 
-                    title: `Relatie: ${d.rollabel}\nJaar: ${d['finalstartyearfix\nvalue']}-${d.finalendyearfixvalue}`,
-                    // OPMERKING: finalstartyearfix\nvalue is een vreemde naam met een newline.
-                    // We gebruiken de string-notatie om dit te adresseren, wat de meest robuuste aanpak is.
-                    startYear: parseInt(d['finalstartyearfix\nvalue']), // Headers in CSV: "finalstartyearfix\nvalue" 
-                    endYear: parseInt(d.finalendyearfixvalue) // Headers in CSV: finalendyearfixvalue 
-                }));
-                
-                filterAndDraw();
-
-            } catch (error) {
-                console.error("Fout bij het laden van de bestanden:", error);
-                container.innerHTML = "Kon de netwerkdata niet laden. Controleer of de bestanden **'nodes.csv'** en **'edges.csv'** correct zijn en op GitHub staan, of pas de kolomnamen aan in de code.";
-            }
-        }
-
-        function parseCSV(url) {
-            return new Promise((resolve, reject) => {
-                Papa.parse(url, {
-                    download: true,
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: (results) => {
-                        if (results.errors.length > 0) {
-                            console.error(`Fouten bij het parsen van ${url}:`, results.errors);
-                            reject(results.errors);
-                        } else {
-                            if (results.data.length === 0) {
-                                console.warn(`CSV-bestand ${url} is leeg of kon niet correct worden geparst.`);
-                                reject(new Error("Leeg of ongeldig CSV-bestand."));
-                            } else {
-                                resolve(results.data);
-                            }
-                        }
-                    },
-                    error: (error) => reject(error)
-                });
-            });
-        }
-
-        function filterAndDraw() {
-            const startYear = parseInt(document.getElementById('startYear').value);
-            const endYear = parseInt(document.getElementById('endYear').value);
-
-            if (isNaN(startYear) || isNaN(endYear)) return;
-
-            // 1. Filter de Edges
-            const filteredEdges = allEdges.filter(edge => {
-                return edge.startYear <= endYear && edge.endYear >= startYear;
-            });
-
-            // 2. Bepaal de Nodes
-            const connectedNodeIds = new Set();
-            filteredEdges.forEach(edge => {
-                connectedNodeIds.add(edge.from);
-                connectedNodeIds.add(edge.to);
-            });
-
-            // 3. Filter de Nodes
-            const filteredNodes = allNodes.filter(node => {
-                return connectedNodeIds.has(node.id);
-            });
-            
-            // 4. Update de tellers
-            document.getElementById('nodeCount').textContent = filteredNodes.length;
-            document.getElementById('edgeCount').textContent = filteredEdges.length;
-
-            // 5. Creëer de Vis.js data structuur
-            const data = {
-                nodes: new vis.DataSet(filteredNodes),
-                edges: new vis.DataSet(filteredEdges)
-            };
-
-            // 6. Teken of update het netwerk
-            if (network) {
-                network.setData(data);
-            } else {
-                network = new vis.Network(container, data, options);
-            }
-        }
-
-        // Start het proces
-        loadData();
-    </script>
-
-</body>
-</html>
+    }
+};
