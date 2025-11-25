@@ -43,7 +43,7 @@
         const options = {
             nodes: {
                 shape: 'dot',
-                // De 'size' is verwijderd, deze wordt nu per node via de data (d.Size) ingesteld.
+                // size: 10 is hier WEGGEHAALD, de grootte wordt nu uit de data gehaald (d.Size)
                 font: { size: 12, color: '#333' },
                 borderWidth: 2
             },
@@ -78,7 +78,7 @@
                 // Laden van nodes.csv
                 const nodesData = await parseCSV('nodes.csv');
                 allNodes = nodesData.map(d => ({
-                    // MAPPING VOOR NIEUWE WENSEN (HOVER & SIZE)
+                    // Kolomnamen zijn HOOFDLETTERGEVOELIG en kloppen met uw geüploade nodes.csv
                     id: d.Id, 
                     label: d.Label, 
                     group: d.category, 
@@ -93,6 +93,7 @@
                 // Laden van edges.csv
                 const edgesData = await parseCSV('edges.csv');
                 allEdges = edgesData.map(d => ({
+                    // Kolomnamen kloppen met uw geüploade edges.csv
                     from: d.Source, 
                     to: d.Target, 
                     label: d.rollabel, 
@@ -105,44 +106,34 @@
 
             } catch (error) {
                 console.error("Fout bij het laden van de bestanden:", error);
-                container.innerHTML = "<h2>Data Laadfout: Netwerk is leeg</h2><p>Controleer of de bestanden **'nodes.csv'** en **'edges.csv'** in dezelfde map staan en of er geen 404-fouten zijn in de console.</p>";
+                container.innerHTML = "<h2>Data Laadfout: Netwerk is leeg</h2><p>Controleer of de bestanden **'nodes.csv'** en **'edges.csv'** in dezelfde map staan en of de kolommen **`Id`** en **`Size`** in `nodes.csv` correct zijn.</p>";
             }
         }
 
         /**
          * Utility functie om een CSV-bestand te parsen met PapaParse.
-         * Probeert eerst met ',' en dan met ';'.
+         * Teruggebracht naar de simpele versie die eerder werkte.
          */
         function parseCSV(url) {
             return new Promise((resolve, reject) => {
-                const attemptParse = (delimiter, callback) => {
-                    Papa.parse(url, {
-                        download: true,
-                        header: true,
-                        skipEmptyLines: true,
-                        delimiter: delimiter, 
-                        complete: callback
-                    });
-                };
-
-                // POGING 1: Komma-scheidingsteken (standaard)
-                attemptParse(',', (results) => {
-                    // Check of er data is EN of de 'Id' kolom geparsed is (hoofdlettergevoelig)
-                    if (results.data.length > 0 && results.data[0].Id !== undefined) {
-                        console.log(`CSV succesvol geladen met ',' voor ${url}`);
-                        return resolve(results.data);
-                    }
-
-                    // POGING 2: Puntkomma-scheidingsteken (vaak bij Europese CSV's)
-                    attemptParse(';', (resultsSemi) => {
-                        if (resultsSemi.data.length > 0 && resultsSemi.data[0].Id !== undefined) {
-                            console.log(`CSV succesvol geladen met ';' voor ${url}`);
-                            return resolve(resultsSemi.data);
+                Papa.parse(url, {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: true,
+                    // De delimiter is NIET gespecificeerd, gebruikt de standaard: komma (,)
+                    complete: (results) => {
+                        if (results.errors.length > 0) {
+                            console.error(`Fouten bij het parsen van ${url}:`, results.errors);
+                            reject(results.errors);
+                        } else {
+                            if (results.data.length === 0) {
+                                reject(new Error("Leeg of ongeldig CSV-bestand."));
+                            } else {
+                                resolve(results.data);
+                            }
                         }
-
-                        // Definitieve fout
-                        reject(new Error(`CSV-bestand ${url} kon niet correct worden geparst met de verwachte kolomnamen.`));
-                    });
+                    },
+                    error: (error) => reject(error)
                 });
             });
         }
