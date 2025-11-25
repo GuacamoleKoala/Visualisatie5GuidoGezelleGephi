@@ -3,7 +3,7 @@
 <head>
     <title>Gezelle Netwerk Visualisatie</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papapar.se.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         /* Basisstijlen voor de container */
         #mynetwork {
@@ -15,7 +15,7 @@
         body { 
             font-family: Arial, sans-serif; 
             padding: 20px; 
-            position: relative; /* Nodig voor de Info Panel */
+            position: relative; 
         }
 
         /* Stijlen voor de controlebalk (jaartallen, reset) */
@@ -71,7 +71,7 @@
             margin-bottom: 5px;
             padding: 5px;
             border-radius: 3px;
-            cursor: pointer; /* Zorgt voor clickable gevoel */
+            cursor: pointer; 
             transition: background-color 0.1s;
         }
         .legend-item:hover {
@@ -101,14 +101,14 @@
         #nodeInfoPanel {
             position: fixed;
             top: 0;
-            right: -300px; /* Initieel buiten beeld */
+            right: -300px; 
             width: 300px;
             height: 100%;
             background-color: #f8f9fa;
             border-left: 1px solid #ccc;
             box-shadow: -4px 0 8px rgba(0,0,0,0.1);
-            z-index: 1001; /* Hoger dan de legende */
-            transition: right 0.3s ease-in-out; /* Animatie */
+            z-index: 1001; 
+            transition: right 0.3s ease-in-out; 
             padding: 20px;
             overflow-y: auto;
         }
@@ -199,6 +199,7 @@
         // --- Data Laden en Parsen Functies ---
         async function loadData() {
             try {
+                // Let op: De Papa Parse URL in de <head> is nu gecorrigeerd.
                 const nodesData = await parseCSV('nodes.csv');
                 allNodes = nodesData.map(d => ({
                     id: d.Id, 
@@ -231,17 +232,18 @@
 
             } catch (error) {
                 console.error("Fout bij het laden van de bestanden:", error);
-                container.innerHTML = "<h2>Data Laadfout: Netwerk is leeg</h2><p>Controleer of de bestanden **'nodes.csv'** en **'edges.csv'** correct zijn en in de juiste map staan. Druk op F12 en bekijk de **Console** voor gedetailleerde fouten.</p>";
+                // Vriendelijke foutmelding
+                container.innerHTML = "<h2>Data Laadfout: Netwerk is leeg</h2><p>Controleer of de bestanden **'nodes.csv'** en **'edges.csv'** in **dezelfde map** staan als de `index.html`. Open de browser **Console (F12)** voor gedetailleerde fouten.</p>";
             }
         }
 
         function parseCSV(url) {
             return new Promise((resolve, reject) => {
+                // Papa.parse is nu beschikbaar vanwege de gecorrigeerde URL
                 Papa.parse(url, {
                     download: true,
                     header: true,
                     skipEmptyLines: true,
-                    // Probeer slim de delimiter te bepalen
                     dynamicTyping: true, 
                     complete: (results) => {
                          if (results.data.length === 0) {
@@ -470,10 +472,6 @@
 
         // --- Legende Functies ---
         
-        /**
-         * Toggle de zichtbaarheid van de Legende container.
-         * @param {boolean} hide - Indien true, verbergt de legende altijd.
-         */
         function toggleLegend(hide = false) {
             const container = document.getElementById('legendContainer');
             const button = document.getElementById('legendToggleButton');
@@ -486,9 +484,6 @@
             }
         }
         
-        /**
-         * Schakelt de categorie filter in/uit en roept hertekenen aan.
-         */
         function toggleCategoryFilter(category, isNode) {
             if (currentCategoryFilter.category === category && currentCategoryFilter.isNode === isNode) {
                 // Dubbelklik op dezelfde categorie: Reset filter
@@ -499,19 +494,18 @@
             }
             
             filterAndDraw();
-            toggleLegend(true); // Verberg de legende na selectie
+            // toggleLegend(true); // Uitschakelen, de gebruiker kan hem zelf verbergen indien gewenst.
         }
 
-        /**
-         * Update de visuele highlight van de legende items.
-         */
         function updateLegendHighlight() {
             document.querySelectorAll('.legend-item').forEach(item => {
                 item.classList.remove('active');
             });
             
             if (currentCategoryFilter.category) {
-                const id = `legend-${currentCategoryFilter.isNode ? 'node' : 'edge'}-${currentCategoryFilter.category.replace(/\s/g, '_')}`;
+                // Maak een veilige ID van de categorie (vervang spaties door underscores)
+                const safeCategory = currentCategoryFilter.category.replace(/\s/g, '_');
+                const id = `legend-${currentCategoryFilter.isNode ? 'node' : 'edge'}-${safeCategory}`;
                 const activeItem = document.getElementById(id);
                 if (activeItem) {
                     activeItem.classList.add('active');
@@ -519,9 +513,6 @@
             }
         }
 
-        /**
-         * Bouwt de Legende op basis van de unieke categorieën (nodes) en relatietypes (edges).
-         */
         function buildLegend() {
             const legendList = document.getElementById('legendList');
             const uniqueNodeCategories = new Map();
@@ -545,7 +536,8 @@
             let html = '<h4>Knooppunttypes (Nodes)</h4>';
             // Node Legende
             uniqueNodeCategories.forEach((color, category) => {
-                const id = `legend-node-${category.replace(/\s/g, '_')}`;
+                const safeCategory = category.replace(/\s/g, '_');
+                const id = `legend-node-${safeCategory}`;
                 html += `
                     <div class="legend-item" id="${id}" onclick="toggleCategoryFilter('${category}', true)">
                         <div class="legend-color" style="background-color: ${color}; border-color: ${color === '#ffffff' ? '#333' : color};"></div>
@@ -557,7 +549,8 @@
             html += '<br><h4>Relatietypes (Edges)</h4>';
             // Edge Legende
             uniqueEdgeCategories.forEach((color, label) => {
-                const id = `legend-edge-${label.replace(/\s/g, '_')}`;
+                const safeLabel = label.replace(/\s/g, '_');
+                const id = `legend-edge-${safeLabel}`;
                 html += `
                     <div class="legend-item" id="${id}" onclick="toggleCategoryFilter('${label}', false)">
                         <div class="legend-edge" style="background-color: ${color};"></div>
@@ -574,9 +567,6 @@
 
         // --- Info Paneel Functies ---
         
-        /**
-         * Toont of verbergt het uitschuifbare paneel met verbindingsinformatie.
-         */
         function updateInfoPanel(nodeId) {
             const panel = document.getElementById('nodeInfoPanel');
             const content = document.getElementById('nodeInfoContent');
@@ -594,7 +584,6 @@
                  return;
             }
 
-            // We gebruiken de momenteel zichtbare data (originalEdgesData) voor consistentie
             const connectedEdges = originalEdgesData.get({
                 filter: function(edge) {
                     return edge.from === nodeId || edge.to === nodeId;
