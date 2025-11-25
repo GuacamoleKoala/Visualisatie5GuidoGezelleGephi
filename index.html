@@ -41,7 +41,7 @@
         let originalEdgesData = null; 
         const container = document.getElementById('mynetwork');
 
-        // --- Vis.js Options ---
+        // --- Vis.js Options (Aangepast voor meer stabiliteit) ---
         const options = {
             nodes: {
                 shape: 'dot',
@@ -58,14 +58,14 @@
                 solver: 'forceAtlas2Based', 
                 forceAtlas2Based: {
                     gravitationalConstant: -150, 
-                    centralGravity: 0.005,
+                    centralGravity: 0.001, // LAGERE centrale zwaartekracht voor minder trekken naar het midden
                     springLength: 250,      
-                    springConstant: 0.08,   
+                    springConstant: 0.05,   // ZWAKKERE veerkracht voor minder beweging
                     avoidOverlap: 1         
                 },
                 stabilization: { 
                     enabled: true, 
-                    iterations: 100, 
+                    iterations: 250, // MEER iteraties om in het begin stabiel te worden
                     fitAfterStabilized: true, 
                     tolerance: 0.001
                 }
@@ -76,7 +76,6 @@
         // --- Data Laden en Parsen Functies ---
         async function loadData() {
             try {
-                // Laden van nodes.csv (met kleur)
                 const nodesData = await parseCSV('nodes.csv');
                 allNodes = nodesData.map(d => ({
                     id: d.Id, 
@@ -89,7 +88,6 @@
                     color: d.Color 
                 }));
 
-                // Laden van edges.csv (met kleur)
                 const edgesData = await parseCSV('edges.csv');
                 allEdges = edgesData.map(d => ({
                     id: d.Id, 
@@ -99,7 +97,7 @@
                     title: `Relatie: ${d.rollabel}\nJaar: ${d.finalstartyearfixvalue}-${d.finalendyearfixvalue}`,
                     startYear: parseInt(d.finalstartyearfixvalue), 
                     endYear: parseInt(d.finalendyearfixvalue),
-                    color: d.Color // **FIX: Kleur van de rand wordt nu opgeslagen**
+                    color: d.Color
                 }));
                 
                 filterAndDraw();
@@ -158,6 +156,7 @@
             document.getElementById('nodeCount').textContent = filteredNodes.length;
             document.getElementById('edgeCount').textContent = filteredEdges.length;
 
+            // BELANGRIJK: Sla de gefilterde data op als Vis.js DataSets
             originalNodesData = new vis.DataSet(filteredNodes);
             originalEdgesData = new vis.DataSet(filteredEdges);
 
@@ -172,88 +171,97 @@
                 network = new vis.Network(container, data, options);
                 network.on("click", handleNodeClick);
             }
+            // Zorg ervoor dat de fysica stopt nadat de stabilisatie is voltooid
+            network.on("stabilizationIterationsDone", function() {
+                network.setOptions( {physics: false} );
+            });
         }
         // --------------------------------------------------------------------
 
 
-        // --- Click Handler Functie (voor highlighting) ---
+        // --- Verbeterde Click Handler Functie (Geen reset/explosie) ---
         function handleNodeClick(params) {
-            // Als er niets is aangeklikt, reset de weergave
+            const updatedNodes = [];
+            const updatedEdges = [];
+
+            // Reset functie (klik op lege ruimte)
             if (params.nodes.length === 0) {
-                network.setData({
-                    nodes: originalNodesData,
-                    edges: originalEdgesData
+                // We updaten de stijlen van alle nodes en edges terug naar hun oorspronkelijke staat (opacity 1.0)
+                originalNodesData.forEach(node => {
+                    updatedNodes.push({
+                        id: node.id,
+                        opacity: 1.0,
+                        color: node.color,
+                        borderWidth: 2
+                    });
                 });
+                originalEdgesData.forEach(edge => {
+                    updatedEdges.push({
+                        id: edge.id,
+                        width: 1,
+                        color: { color: edge.color || '#333', opacity: 1.0 }
+                    });
+                });
+                
+                // Pas de updates toe zonder de data te vervangen
+                originalNodesData.update(updatedNodes);
+                originalEdgesData.update(updatedEdges);
                 return; 
             }
 
             const selectedNodeId = params.nodes[0];
-            // Gebruik de actuele verbonden randen in het netwerk
             const connectedEdges = network.getConnectedEdges(selectedNodeId);
             
             // 1. Zoek alle verbonden nodes
             const connectedNodeIds = new Set();
             connectedEdges.forEach(edgeId => {
-                // Gebruik originalEdgesData om edge details op te halen
                 const edge = originalEdgesData.get(edgeId); 
-                if (edge) { // Zorg ervoor dat de rand bestaat (wat altijd zo moet zijn, maar veiligheidshalve)
+                if (edge) { 
                     if (edge.from !== selectedNodeId) connectedNodeIds.add(edge.from);
                     if (edge.to !== selectedNodeId) connectedNodeIds.add(edge.to);
                 }
             });
 
-            // 2. Wijzig de stijl van alle nodes
-            const allNodeUpdates = originalNodesData.map(node => {
+            // 2. Definieer de updates voor alle nodes
+            originalNodesData.forEach(node => {
                 const isSelected = node.id === selectedNodeId;
                 const isConnected = connectedNodeIds.has(node.id);
                 
-                let update = {};
+                let update = { id: node.id };
 
                 if (isSelected || isConnected) {
                     // OPLICHTEN
-                    update = {
-                        id: node.id,
-                        opacity: 1.0,
-                        color: node.color, 
-                        borderWidth: isSelected ? 3 : 2
-                    };
+                    update.opacity = 1.0;
+                    update.color = node.color; 
+                    update.borderWidth = isSelected ? 3 : 2;
                 } else {
                     // DONKERDER MAKEN
-                    update = {
-                        id: node.id,
-                        opacity: 0.3,
-                        color: { background: '#ccc', border: '#999' } 
-                    };
+                    update.opacity = 0.3;
+                    update.color = { background: '#ccc', border: '#999' }; 
                 }
-                return update;
+                updatedNodes.push(update);
             });
 
-            // 3. Wijzig de stijl van alle edges
-            const allEdgeUpdates = originalEdgesData.map(edge => {
+            // 3. Definieer de updates voor alle edges
+            originalEdgesData.forEach(edge => {
                 const isConnected = connectedEdges.includes(edge.id);
                 let update = { id: edge.id };
 
                 if (isConnected) {
                     // OPLICHTEN
                     update.width = 3;
-                    // Gebruik de originele opgeslagen randkleur (edge.color is nu correct ingeladen!)
                     update.color = { color: edge.color || '#333', opacity: 1.0 }; 
                 } else {
                     // DONKERDER MAKEN
                     update.width = 1;
                     update.color = { color: '#ccc', opacity: 0.1 };
                 }
-                return update;
+                updatedEdges.push(update);
             });
 
-            // 4. Update de dataSet met de nieuwe stijlen
-            const updatedNodes = new vis.DataSet(allNodeUpdates);
-            const updatedEdges = new vis.DataSet(allEdgeUpdates);
-
-            network.setData({
-                nodes: updatedNodes,
-                edges: updatedEdges
-            });
+            // 4. Pas de stijlen toe via update(), GEEN setData()
+            originalNodesData.update(updatedNodes);
+            originalEdgesData.update(updatedEdges);
         }
         // --------------------------------------------------------------------
 
