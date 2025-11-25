@@ -44,7 +44,7 @@
         let originalEdgesData = null; 
         const container = document.getElementById('mynetwork');
 
-        // --- Vis.js Options (Fysica uitgeschakeld om vaste lay-out te garanderen) ---
+        // --- Vis.js Options (Fysica uitgeschakeld voor vaste lay-out) ---
         const options = {
             nodes: {
                 shape: 'dot',
@@ -56,7 +56,6 @@
                 color: { inherit: true },
                 smooth: { type: 'continuous' }
             },
-            // ZET FYSICA UIT: De coördinaten worden direct uit de CSV gehaald.
             physics: {
                 enabled: false 
             }
@@ -76,10 +75,10 @@
                     endYear: parseInt(d.endyearcor),
                     size: parseFloat(d.Size) || 15,
                     color: d.Color,
-                    // NIEUW: Gebruik de vaste coördinaten uit de CSV om de positie vast te leggen
+                    // Gebruik de vaste coördinaten
                     x: parseFloat(d.X), 
                     y: parseFloat(d.Y),
-                    fixed: true // Belangrijk: Node mag niet bewegen
+                    fixed: true // Node mag niet bewegen
                 }));
 
                 const edgesData = await parseCSV('edges.csv');
@@ -144,7 +143,6 @@
             });
 
             const filteredNodes = allNodes.filter(node => {
-                // BELANGRIJK: Zorg ervoor dat de node ook de coördinaten behoudt uit de allNodes array!
                 return connectedNodeIds.has(node.id);
             });
             
@@ -161,27 +159,31 @@
 
             if (network) {
                 network.setData(data);
-                network.fit(); // Centreer de weergave op de nieuwe gefilterde set
+                // CENTREER bij elke nieuwe filtering
+                network.fit(); 
             } else {
                 network = new vis.Network(container, data, options);
                 network.on("click", handleNodeClick);
             }
             
-            // Na het filteren, reset de highlighting (dit is beter dan het handmatig resetten)
+            // Reset de highlighting na het filteren
             resetHighlighting();
         }
         // --------------------------------------------------------------------
 
 
-        // --- Nieuwe Reset Functie ---
+        // --- Verbeterde Reset Functies (FIX WIT SCHERM) ---
         function resetView() {
             if (network) {
                 resetHighlighting();
-                network.fit(); // Centreer de weergave
+                // CRUCIAAL: Centreer de weergave na de reset
+                network.fit(); 
             }
         }
 
         function resetHighlighting() {
+            if (!originalNodesData || !originalEdgesData) return;
+
             const updatedNodes = [];
             const updatedEdges = [];
 
@@ -207,6 +209,9 @@
             // Pas de updates toe
             originalNodesData.update(updatedNodes);
             originalEdgesData.update(updatedEdges);
+            
+            // Verwijder eventuele handmatige selectie
+            network.unselectAll();
         }
         // --------------------------------------------------------------------
 
@@ -216,7 +221,7 @@
             const updatedNodes = [];
             const updatedEdges = [];
 
-            // Reset functionaliteit (klik op lege ruimte, of gebruik reset knop)
+            // Reset functionaliteit (klik op lege ruimte)
             if (params.nodes.length === 0) {
                 resetHighlighting();
                 return; 
