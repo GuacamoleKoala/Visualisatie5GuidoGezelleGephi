@@ -8,15 +8,15 @@
         /* Basisstijlen voor de container */
         #mynetwork {
             width: 100%;
-            height: 80vh; /* Aangepast voor grotere visualisatie */
-            min-height: 600px;
+            height: 80vh; /* AANPASSING: Gebruik 80% van de viewport hoogte voor een grotere visualisatie */
+            min-height: 600px; /* Zorgt ervoor dat het altijd minimaal 600px hoog is */
             border: 1px solid lightgray;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
         body { 
             font-family: Arial, sans-serif; 
             padding: 20px; 
-            position: relative; 
+            position: relative; /* CRUCIAAL: Zorgt ervoor dat absolute overlays zich ten opzichte hiervan positioneren */
         }
 
         /* Stijlen voor de controlebalk (jaartallen, reset) */
@@ -47,10 +47,9 @@
 
         /* STIJLEN VOOR LEGENDE & INFO PANEEL (Overlay) */
         .overlay-container {
-            /* Dit zorgt voor de positie rechtsboven */
             position: absolute;
             top: 100px;
-            right: 20px; 
+            right: 20px;
             z-index: 1000; 
             background: white;
             padding: 20px;
@@ -60,10 +59,10 @@
             max-height: 450px;
             overflow-y: auto; 
             transition: opacity 0.3s;
-            position: relative; /* Basis voor absolute .close-button */
+            position: absolute; /* CRUCIAAL: Basis voor absolute .close-button */
         }
-        
-        /* Stijl voor de universele sluitknop (X) */
+
+        /* NIEUWE STIJL: De Sluitknop voor Overlays */
         .close-button {
             position: absolute;
             top: 10px;
@@ -79,15 +78,16 @@
             z-index: 1002;
         }
         .close-button:hover {
-            color: #dc3545; 
+            color: #dc3545; /* Rood bij hover */
         }
+        /* Zorgt ervoor dat de titel niet onder de knop verdwijnt */
         .overlay-container h3 {
             padding-right: 30px; 
         }
 
         /* Legende Items */
         #legendContainer { 
-            display: none; 
+            display: none; /* Standaard verborgen */
         } 
         
         .legend-item {
@@ -122,7 +122,7 @@
             margin-right: 10px;
         }
         
-        /* STIJLEN VOOR HET SLIDING INFO PANEEL (rechts schuift in) */
+        /* STIJLEN VOOR HET SLIDING INFO PANEEL */
         #nodeInfoPanel {
             position: fixed;
             top: 0;
@@ -157,8 +157,6 @@
             margin-bottom: 3px;
             font-size: 0.9rem;
         }
-
-
     </style>
 </head>
 <body>
@@ -190,7 +188,7 @@
     </div>
     
     <div id="nodeInfoPanel">
-        <button class="close-button" style="top: 10px; right: 20px; position: fixed;" onclick="updateInfoPanel(null)">&times;</button>
+        <button class="close-button" onclick="updateInfoPanel(null)">&times;</button>
         <div id="nodeInfoContent">
         </div>
     </div>
@@ -199,17 +197,17 @@
         let allNodes = [];
         let allEdges = [];
         let network = null;
-        let originalNodesData = null; 
-        let originalEdgesData = null; 
+        let originalNodesData = null; // Vis.js DataSet van de ge-timefilterde nodes
+        let originalEdgesData = null; // Vis.js DataSet van de ge-timefilterde edges
         const container = document.getElementById('mynetwork');
-        let selectedNode = null; 
-        let currentCategoryFilter = { category: null, isNode: null }; 
+        let selectedNode = null; // ID van de geselecteerde node voor highlighting
+        let currentCategoryFilter = { category: null, isNode: null }; // State voor categoriefilter
 
         // --- Vis.js Options ---
         const options = {
             nodes: {
                 shape: 'dot',
-                font: { size: 14, color: '#333' }, /* Verbeterde font size */
+                font: { size: 14, color: '#333' }, /* AANPASSING: Verhoogde font size voor betere leesbaarheid */
                 borderWidth: 2
             },
             edges: {
@@ -218,7 +216,7 @@
                 smooth: { type: 'continuous' }
             },
             physics: {
-                enabled: false /* BELANGRIJK: Zorgt voor een stabiele lay-out op basis van X en Y */
+                enabled: false /* Houdt de pre-berekende lay-out vast */
             }
         };
         // --------------------------------------------------------------------
@@ -226,12 +224,12 @@
         // --- Data Laden en Parsen Functies ---
         async function loadData() {
             try {
-                // Laden van nodes.csv
+                // Papa Parse is beschikbaar
                 const nodesData = await parseCSV('nodes.csv');
                 allNodes = nodesData.map(d => ({
                     id: d.Id, 
                     label: d.Label, 
-                    group: d.category, 
+                    group: d.category, // Categorie voor Legende
                     title: `Naam: ${d.Label}\nType: ${d.category}\nStart: ${d.startyearcorfixvalue}\nEind: ${d.endyearcor}`,
                     startYear: parseInt(d.startyearcorfixvalue), 
                     endYear: parseInt(d.endyearcor),
@@ -239,16 +237,15 @@
                     color: d.Color,
                     x: parseFloat(d.X), 
                     y: parseFloat(d.Y),
-                    fixed: true /* BELANGRIJK: Houdt de positie vast */
+                    fixed: true 
                 }));
 
-                // Laden van edges.csv
                 const edgesData = await parseCSV('edges.csv');
                 allEdges = edgesData.map(d => ({
                     id: d.Id, 
                     from: d.Source, 
                     to: d.Target, 
-                    label: d.rollabel, 
+                    label: d.rollabel, // Categorie voor Legende
                     title: `Relatie: ${d.rollabel}\nJaar: ${d.finalstartyearfixvalue}-${d.finalendyearfixvalue}`,
                     startYear: parseInt(d.finalstartyearfixvalue), 
                     endYear: parseInt(d.finalendyearfixvalue),
@@ -267,31 +264,19 @@
 
         function parseCSV(url) {
             return new Promise((resolve, reject) => {
-                const attemptParse = (delimiter = ',', callback) => {
-                    Papa.parse(url, {
-                        download: true,
-                        header: true,
-                        skipEmptyLines: true,
-                        delimiter: delimiter, // Gebruik de opgegeven delimiter
-                        dynamicTyping: true, 
-                        complete: callback,
-                        error: (error) => reject(error)
-                    });
-                };
-                
-                // Eerste poging: Komma
-                attemptParse(',', (results) => {
-                    if (results.data.length > 0 && Object.keys(results.data[0]).length > 1) {
-                         return resolve(results.data);
-                    }
-                    // Tweede poging: Puntkomma
-                    attemptParse(';', (resultsSemi) => {
-                        if (resultsSemi.data.length > 0 && Object.keys(resultsSemi.data[0]).length > 1) {
-                            return resolve(resultsSemi.data);
-                        }
-                        // Definitieve fout
-                        reject(new Error(`CSV-bestand ${url} is leeg of kon niet correct worden geparst.`));
-                    });
+                // Papa.parse is beschikbaar
+                Papa.parse(url, {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: true,
+                    dynamicTyping: true, 
+                    complete: (results) => {
+                         if (results.data.length === 0) {
+                            reject(new Error(`CSV-bestand ${url} is leeg.`));
+                         }
+                         resolve(results.data);
+                    },
+                    error: (error) => reject(error)
                 });
             });
         }
@@ -534,6 +519,7 @@
             }
             
             filterAndDraw();
+            // toggleLegend(true); // Uitschakelen, de gebruiker kan hem zelf verbergen indien gewenst.
         }
 
         function updateLegendHighlight() {
