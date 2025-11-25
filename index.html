@@ -73,8 +73,8 @@
          */
         async function loadData() {
             try {
-                // Laad Nodes data
-                const nodesData = await parseCSV('V6GuidoGezelle - NodesNoDup.csv');
+                // Laad Nodes data - AANGEPASTE NAAM: nodes.csv
+                const nodesData = await parseCSV('nodes.csv');
                 allNodes = nodesData.map(d => ({
                     id: d.ID,
                     label: d.Label,
@@ -84,8 +84,8 @@
                     endYear: parseInt(d.EndYearcor)
                 }));
 
-                // Laad Edges data
-                const edgesData = await parseCSV('V6GuidoGezelle - Edges(1).csv');
+                // Laad Edges data - AANGEPASTE NAAM: edges.csv
+                const edgesData = await parseCSV('edges.csv');
                 allEdges = edgesData.map(d => ({
                     from: d.source,
                     to: d.target,
@@ -100,7 +100,8 @@
 
             } catch (error) {
                 console.error("Fout bij het laden van de bestanden:", error);
-                container.innerHTML = "Kon de netwerkdata niet laden. Controleer of de CSV-bestanden correct zijn en in dezelfde map staan.";
+                // Deze foutmelding wordt alleen getoond als het ophalen van de data mislukt (bijv. 404)
+                container.innerHTML = "Kon de netwerkdata niet laden. Controleer of de bestanden **'nodes.csv'** en **'edges.csv'** correct zijn en op GitHub staan.";
             }
         }
 
@@ -116,10 +117,16 @@
                     skipEmptyLines: true,
                     complete: (results) => {
                         if (results.errors.length > 0) {
-                            console.error("Fouten bij het parsen van CSV:", results.errors);
+                            console.error(`Fouten bij het parsen van ${url}:`, results.errors);
                             reject(results.errors);
                         } else {
-                            resolve(results.data);
+                            // Controleer op een lege dataset na het parsen
+                            if (results.data.length === 0) {
+                                console.warn(`CSV-bestand ${url} is leeg of kon niet correct worden geparst.`);
+                                reject(new Error("Leeg of ongeldig CSV-bestand."));
+                            } else {
+                                resolve(results.data);
+                            }
                         }
                     },
                     error: (error) => reject(error)
@@ -138,9 +145,7 @@
 
             // 1. Filter de Edges
             const filteredEdges = allEdges.filter(edge => {
-                // De rand is actief als: 
-                // [EdgeStart, EdgeEnd] overlapt met [SelectStart, SelectEnd]
-                // Dit betekent: EdgeStart <= SelectEnd EN EdgeEnd >= SelectStart
+                // De rand is actief als: EdgeStart <= SelectEnd EN EdgeEnd >= SelectStart
                 return edge.startYear <= endYear && edge.endYear >= startYear;
             });
 
@@ -151,17 +156,14 @@
                 connectedNodeIds.add(edge.to);
             });
 
-            // 3. Filter de Nodes (toon alleen verbonden nodes EN nodes die binnen de jaartijdlijn vallen)
+            // 3. Filter de Nodes (toon alleen verbonden nodes)
             const filteredNodes = allNodes.filter(node => {
                 return connectedNodeIds.has(node.id);
-                // Extra filteroptie (als je nodes ook wilt filteren op hun individuele jaartijdlijn):
-                // return connectedNodeIds.has(node.id) && node.startYear <= endYear && node.endYear >= startYear;
             });
             
             // 4. Update de tellers
             document.getElementById('nodeCount').textContent = filteredNodes.length;
             document.getElementById('edgeCount').textContent = filteredEdges.length;
-
 
             // 5. Creëer de Vis.js data structuur
             const data = {
