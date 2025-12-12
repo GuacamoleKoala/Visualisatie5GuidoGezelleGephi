@@ -179,7 +179,7 @@
 </head>
 <body>
 
-    <h1>Netwerk Visualisatie Guido Gezelle</h1>
+    <h1>Visualisatie 5: Netwerk van Guido Gezelle over de tijd</h1>
 
     <div class="controls">
         <div class="control-row">
@@ -661,10 +661,40 @@
         }
 
         function showInfo() {
-            alert("Informatie: Tijdlijn filters, Animatie, Interactie (klik/dubbelklik), Legende en Info Paneel.");
+            const infoMessage = `
+--- Functionaliteiten van de Visualisatie ---
+
+De visualisatie is uitgerust met de volgende belangrijke functionaliteiten:
+
+1. Tijdlijnfiltering (Filteren op Jaar)
+   - Start Jaar / Eind Jaar: De gebruiker kan een begin- en eindjaar opgeven om de weergegeven knooppunten en relaties te beperken tot degenen die actief waren binnen die periode.
+   - Live Telling: Het aantal Gefilterde knooppunten en Gefilterde randen wordt in realtime bijgewerkt in de controlebalk.
+
+2. Tijdlijnanimatie
+   - Start/Pauzeer Animatie: Met de knop ▶ kan de gebruiker een animatie starten die het Eind Jaar stapsgewijs verhoogt (op basis van de geselecteerde stapgrootte) om de groei van het netwerk dynamisch te tonen.
+   - Stapgrootte: De gebruiker kan de snelheid van de animatie aanpassen door te kiezen voor stappen van 1, 5 of 10 jaar.
+   - Actief Jaar: Toont het huidige eindjaar tijdens de animatie.
+
+3. Interactie en Knooppuntanalyse
+   - Knooppunt Selectie: Door op een knooppunt (Node) te klikken, wordt dat knooppunt en de direct verbonden knooppunten en relaties gehighlight. De rest van het netwerk wordt gedimd.
+   - Info Paneel: Bij het selecteren van een knooppunt schuift een Informatiepaneel van rechts in beeld met de naam, het type, en lijsten van de Inkomende en Uitgaande Relaties.
+   - Reset View: De knop 'Reset Filters & View' herstelt de weergave, de filters en de zoom/pan van het netwerk.
+
+4. Legende en Categoriefiltering
+   - Legende: Via de knop 'Legende Tonen' verschijnt er een overlay die de types van knooppunten (Nodes) en relaties (Edges) met hun bijbehorende kleuren toont.
+   - Categorie Filtering: Door op een categorie in de legende te klikken, wordt het netwerk gefilterd om alleen de knooppunten of randen van die specifieke categorie te tonen.
+            `;
+            // De alert() functie wordt gebruikt om de infoMessage te tonen.
+            alert(infoMessage);
         }
 
         window.onload = loadData;
     </script>
 </body>
 </html>
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
+
